@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabSC Training - Prenotazioni</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Aggiornamento Font Awesome alla versione più recente -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Oswald:wght@500;700&display=swap');
+        
+        :root {
+            --brand-yellow: #facc15; 
+            --brand-black: #000000;
+            --brand-dark: #111111;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--brand-black); 
+            color: #ffffff; 
+        }
+
+        h1, h2, h3, .brand-font {
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .glass { 
+            background: rgba(17, 17, 17, 0.8); 
+            backdrop-filter: blur(10px); 
+            border-bottom: 2px solid var(--brand-yellow); 
+        }
+
+        .slot-card { 
+            transition: all 0.2s ease; 
+            border-width: 2px;
+        }
+
+        .slot-full { 
+            border-color: #ef4444 !important; 
+            background-color: rgba(239, 68, 68, 0.05) !important; 
+        }
+
+        .slot-available { 
+            border-color: var(--brand-yellow) !important; 
+            background-color: rgba(250, 204, 21, 0.03) !important; 
+        }
+
+        .btn-primary {
+            background-color: var(--brand-yellow);
+            color: black;
+            font-weight: 800;
+        }
+
+        .btn-primary:hover {
+            background-color: #eab308;
+        }
+
+        /* Riepilogo Cards */
+        .summary-card {
+            background-color: #121212;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-header {
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .category-atleta { background-color: var(--brand-yellow); color: black; }
+        .category-fitness { background-color: #f97316; color: white; }
+        .category-personal { background-color: #2563eb; color: white; }
+
+        /* Icone Azione - SEMPRE VISIBILI E COLORATE */
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: transform 0.1s ease;
+            font-size: 1.1rem;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            cursor: pointer;
+        }
+        .icon-btn-edit { color: var(--brand-yellow); }
+        .icon-btn-delete { color: #ef4444; }
+        .icon-btn:hover { background: #222; transform: scale(1.1); }
+        .icon-btn:active { transform: scale(0.95); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <header class="p-6 text-center glass sticky top-0 z-50">
+        <h1 class="text-4xl font-bold tracking-tighter text-white">
+            LAB<span class="text-yellow-400">SC</span> TRAINING
+        </h1>
+        <p class="text-slate-400 text-xs mt-1 tracking-widest uppercase font-semibold">Performance & Strength Lab</p>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 md:p-6">
+        
+        <!-- Navigazione Tab -->
+        <div class="flex flex-wrap gap-2 mb-8 justify-center">
+            <button onclick="switchTab('atleta')" id="btn-atleta" class="tab-btn px-6 py-2 rounded-md font-bold transition btn-primary">Atleta</button>
+            <button onclick="switchTab('oneToOne')" id="btn-oneToOne" class="tab-btn px-6 py-2 rounded-md font-bold transition bg-zinc-800 text-zinc-400 hover:bg-zinc-700">Personal</button>
+            <button onclick="switchTab('fitness')" id="btn-fitness" class="tab-btn px-6 py-2 rounded-md font-bold transition bg-zinc-800 text-zinc-400 hover:bg-zinc-700">Fitness</button>
+            <button onclick="switchTab('riepilogo')" id="btn-riepilogo" class="tab-btn px-6 py-2 rounded-md font-bold transition bg-zinc-800 text-zinc-400 hover:bg-zinc-700 uppercase"><i class="fa-solid fa-list-ul mr-2"></i>Riepilogo</button>
+        </div>
+
+        <!-- Selettore Giorno -->
+        <div id="day-selector" class="mb-8 overflow-x-auto">
+            <div class="flex justify-between min-w-[500px] p-1 bg-zinc-900 rounded-lg border border-zinc-800">
+                <button onclick="setDay(1)" class="day-btn flex-1 py-2 text-center rounded-md transition text-yellow-400 bg-zinc-800 font-bold" data-day="1">LUN</button>
+                <button onclick="setDay(2)" class="day-btn flex-1 py-2 text-center rounded-md transition text-zinc-500" data-day="2">MAR</button>
+                <button onclick="setDay(3)" class="day-btn flex-1 py-2 text-center rounded-md transition text-zinc-500" data-day="3">MER</button>
+                <button onclick="setDay(4)" class="day-btn flex-1 py-2 text-center rounded-md transition text-zinc-500" data-day="4">GIO</button>
+                <button onclick="setDay(5)" class="day-btn flex-1 py-2 text-center rounded-md transition text-zinc-500" data-day="5">VEN</button>
+            </div>
+        </div>
+
+        <!-- Sezioni Booking -->
+        <section id="section-atleta" class="booking-section">
+            <div class="flex items-center justify-between mb-6 text-yellow-400">
+                <h2 class="text-3xl font-bold uppercase tracking-tight"><i class="fa-solid fa-bolt mr-2"></i> Gruppo Atleta</h2>
+                <span class="text-xs border border-yellow-400/30 px-3 py-1 rounded-full uppercase font-bold">Max 12</span>
+            </div>
+            <div id="grid-atleta" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <section id="section-oneToOne" class="booking-section hidden">
+            <h2 class="text-3xl font-bold uppercase tracking-tight mb-6 text-blue-400"><i class="fa-solid fa-user-ninja mr-2"></i> Personal Training</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                <button onclick="setCoach('davide')" class="coach-btn p-3 rounded-md border-2 border-yellow-400 bg-zinc-800 text-center transition text-yellow-400 font-bold" id="coach-davide">Davide</button>
+                <button onclick="setCoach('giuseppe')" class="coach-btn p-3 rounded-md border-2 border-transparent bg-zinc-900 text-zinc-400 text-center transition font-bold" id="coach-giuseppe">Giuseppe</button>
+                <button onclick="setCoach('luca')" class="coach-btn p-3 rounded-md border-2 border-transparent bg-zinc-900 text-zinc-400 text-center transition font-bold" id="coach-luca">Luca</button>
+                <button onclick="setCoach('daniela')" class="coach-btn p-3 rounded-md border-2 border-transparent bg-zinc-900 text-zinc-400 text-center transition font-bold" id="coach-daniela">Daniela</button>
+            </div>
+            <div id="grid-oneToOne" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+        </section>
+
+        <section id="section-fitness" class="booking-section hidden">
+            <div class="flex items-center justify-between mb-6 text-orange-500">
+                <h2 class="text-3xl font-bold uppercase tracking-tight"><i class="fa-solid fa-dumbbell mr-2"></i> Gruppi Fitness</h2>
+                <span class="text-xs border border-orange-500/30 px-3 py-1 rounded-full uppercase font-bold">Max 8</span>
+            </div>
+            <div id="grid-fitness" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- Riepilogo -->
+        <section id="section-riepilogo" class="booking-section hidden">
+            <h2 class="text-3xl font-bold uppercase tracking-tighter mb-6 text-white flex items-center">
+                <i class="fa-solid fa-clipboard-list mr-3 text-yellow-400"></i> Registro Attività
+            </h2>
+            <div id="summary-content" class="space-y-8"></div>
+        </section>
+
+    </main>
+
+    <!-- Modal Gestione -->
+    <div id="nameModal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[110] p-4">
+        <div class="bg-zinc-900 border-2 border-yellow-400 p-8 rounded shadow-2xl max-w-sm w-full">
+            <h3 id="modalTitle" class="text-2xl font-bold mb-2 text-center brand-font">Dettagli</h3>
+            <p class="text-zinc-400 text-[10px] mb-6 text-center uppercase tracking-widest font-bold">Inserisci Nome e Cognome</p>
+            
+            <input type="text" id="userNameInput" placeholder="Mario Rossi" class="w-full bg-black border border-zinc-700 p-4 rounded text-white text-lg focus:border-yellow-400 outline-none mb-8">
+
+            <div class="flex gap-2">
+                <button onclick="closeNameModal()" class="flex-1 py-3 bg-zinc-800 text-zinc-400 rounded font-bold uppercase text-xs">Annulla</button>
+                <button onclick="confirmAction()" class="flex-1 py-3 btn-primary rounded font-bold uppercase text-xs">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'atleta';
+        let currentDay = 1; 
+        let currentCoach = 'davide';
+        let pendingAction = null; 
+
+        const state = { atleta: {}, fitness: {}, oneToOne: {} };
+
+        const config = {
+            atleta: { hours: ["11:00 - 12:00", "16:00 - 17:00"], max: 12 },
+            fitness: { hours: ["13:30 - 14:30", "19:00 - 20:00"], max: 8 },
+            oneToOne: { start: 7, end: 20, excluded: [11, 16] },
+            days: ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"]
+        };
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.booking-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${tab}`).classList.remove('hidden');
+            const daySelector = document.getElementById('day-selector');
+            daySelector.style.display = tab === 'riepilogo' ? 'none' : 'block';
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.className = "tab-btn px-6 py-2 rounded-md font-bold transition bg-zinc-800 text-zinc-400 hover:bg-zinc-700";
+            });
+            document.getElementById(`btn-${tab}`).className = "tab-btn px-6 py-2 rounded-md font-bold transition btn-primary";
+            render();
+        }
+
+        function setDay(day) {
+            currentDay = day;
+            document.querySelectorAll('.day-btn').forEach(b => b.className = "day-btn flex-1 py-2 text-center rounded-md transition text-zinc-500");
+            document.querySelector(`[data-day="${day}"]`).className = "day-btn flex-1 py-2 text-center rounded-md transition text-yellow-400 bg-zinc-800 font-bold";
+            render();
+        }
+
+        function setCoach(coach) {
+            currentCoach = coach;
+            document.querySelectorAll('.coach-btn').forEach(b => b.className = "coach-btn p-3 rounded-md border-2 border-transparent bg-zinc-900 text-zinc-400 text-center transition font-bold");
+            document.getElementById(`coach-${coach}`).className = "coach-btn p-3 rounded-md border-2 border-yellow-400 bg-zinc-800 text-center transition text-yellow-400 font-bold";
+            render();
+        }
+
+        function openAddModal(type, time) {
+            pendingAction = { mode: 'add', type, time };
+            document.getElementById('modalTitle').innerText = "Nuova Prenotazione";
+            document.getElementById('userNameInput').value = '';
+            showNameModal();
+        }
+
+        function openEditModal(type, key, index) {
+            let currentName = (type === 'oneToOne') ? state.oneToOne[key] : state[type][key][index];
+            pendingAction = { mode: 'edit', type, key, index };
+            document.getElementById('modalTitle').innerText = "Modifica Atleta";
+            document.getElementById('userNameInput').value = currentName;
+            showNameModal();
+        }
+
+        function showNameModal() {
+            document.getElementById('nameModal').classList.remove('hidden');
+            document.getElementById('nameModal').classList.add('flex');
+            document.getElementById('userNameInput').focus();
+        }
+
+        function closeNameModal() {
+            document.getElementById('nameModal').classList.add('hidden');
+            document.getElementById('nameModal').classList.remove('flex');
+        }
+
+        function confirmAction() {
+            const name = document.getElementById('userNameInput').value.trim();
+            if (!name) return;
+
+            if (pendingAction.mode === 'add') {
+                const { type, time } = pendingAction;
+                if (type === 'atleta' || type === 'fitness') {
+                    const key = `${currentDay}-${time}`;
+                    if (!state[type][key]) state[type][key] = [];
+                    state[type][key].push(name);
+                } else {
+                    const key = `${currentCoach}-${currentDay}-${time}`;
+                    state.oneToOne[key] = name;
+                }
+            } else {
+                const { type, key, index } = pendingAction;
+                if (type === 'oneToOne') state.oneToOne[key] = name;
+                else state[type][key][index] = name;
+            }
+            closeNameModal();
+            render();
+        }
+
+        function deleteParticipant(type, key, index) {
+            if (type === 'oneToOne') delete state.oneToOne[key];
+            else state[type][key].splice(index, 1);
+            render();
+        }
+
+        function render() {
+            if (currentTab === 'atleta') renderGroup('atleta', 'grid-atleta');
+            if (currentTab === 'fitness') renderGroup('fitness', 'grid-fitness');
+            if (currentTab === 'oneToOne') renderOneToOne();
+            if (currentTab === 'riepilogo') renderRiepilogo();
+        }
+
+        function renderGroup(type, gridId) {
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+            config[type].hours.forEach(time => {
+                const key = `${currentDay}-${time}`;
+                const count = (state[type][key] || []).length;
+                const isFull = count >= config[type].max;
+                grid.innerHTML += `
+                    <div class="slot-card p-5 rounded-lg flex items-center justify-between ${isFull ? 'slot-full' : 'slot-available'}">
+                        <div>
+                            <div class="text-3xl font-bold brand-font tracking-wide">${time}</div>
+                            <div class="text-[10px] uppercase font-bold tracking-widest ${isFull ? 'text-red-500' : 'text-yellow-400/60'}">
+                                ${isFull ? 'Sold Out' : `${config[type].max - count} Posti Disponibili`}
+                            </div>
+                        </div>
+                        <button onclick="openAddModal('${type}', '${time}')" ${isFull ? 'disabled' : ''} class="px-6 py-2 btn-primary rounded-md uppercase text-sm font-bold">
+                            ${isFull ? 'Chiuso' : 'Prenota'}
+                        </button>
+                    </div>`;
+            });
+        }
+
+        function renderOneToOne() {
+            const grid = document.getElementById('grid-oneToOne');
+            grid.innerHTML = '';
+            for (let h = config.oneToOne.start; h < config.oneToOne.end; h++) {
+                if (config.oneToOne.excluded.includes(h)) continue;
+                const time = `${h.toString().padStart(2, '0')}:00`;
+                const isBooked = !!state.oneToOne[`${currentCoach}-${currentDay}-${time}`];
+                grid.innerHTML += `
+                    <div class="slot-card p-3 rounded-md text-center ${isBooked ? 'slot-full opacity-60' : 'slot-available'}">
+                        <div class="font-bold mb-2 text-xl">${time}</div>
+                        <button onclick="openAddModal('oneToOne', '${time}')" ${isBooked ? 'disabled' : ''} class="text-[10px] w-full py-2 rounded font-bold uppercase transition ${isBooked ? 'bg-zinc-800 text-zinc-600' : 'btn-primary'}">
+                            ${isBooked ? 'Ocup' : 'Prenota'}
+                        </button>
+                    </div>`;
+            }
+        }
+
+        function renderRiepilogo() {
+            const content = document.getElementById('summary-content');
+            content.innerHTML = '';
+            config.days.forEach((dayName, idx) => {
+                const dayIdx = idx + 1;
+                let dayData = false;
+                let dayContainer = document.createElement('div');
+                dayContainer.innerHTML = `<h3 class="text-3xl font-bold mb-4 text-yellow-400 brand-font border-b-2 border-zinc-800 pb-2">${dayName}</h3>`;
+
+                // ATLETA
+                config.atleta.hours.forEach(time => {
+                    const key = `${dayIdx}-${time}`;
+                    const items = state.atleta[key] || [];
+                    if (items.length > 0) {
+                        dayData = true;
+                        dayContainer.innerHTML += createSummarySection('ATLETA', time, items, 'category-atleta', 'atleta', key);
+                    }
+                });
+
+                // FITNESS
+                config.fitness.hours.forEach(time => {
+                    const key = `${dayIdx}-${time}`;
+                    const items = state.fitness[key] || [];
+                    if (items.length > 0) {
+                        dayData = true;
+                        dayContainer.innerHTML += createSummarySection('FITNESS', time, items, 'category-fitness', 'fitness', key);
+                    }
+                });
+
+                // PERSONAL TRAINING DIVISO PER COACH
+                const coaches = ['davide', 'giuseppe', 'luca', 'daniela'];
+                coaches.forEach(coach => {
+                    const coachEntries = [];
+                    for (let h = config.oneToOne.start; h < config.oneToOne.end; h++) {
+                        const t = `${h.toString().padStart(2, '0')}:00`;
+                        const key = `${coach}-${dayIdx}-${t}`;
+                        if (state.oneToOne[key]) {
+                            coachEntries.push({ name: state.oneToOne[key], time: t, coach, key });
+                        }
+                    }
+
+                    if (coachEntries.length > 0) {
+                        dayData = true;
+                        let pHeader = `<div class="summary-card"><div class="summary-header category-personal">
+                            <span class="brand-font font-bold text-xl tracking-wider">PERSONAL: ${coach.toUpperCase()}</span>
+                            <i class="fa-solid fa-user-ninja"></i>
+                        </div><div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">`;
+                        
+                        coachEntries.forEach(entry => {
+                            pHeader += `<div class="flex justify-between items-center bg-zinc-900/50 p-2 px-3 rounded border border-zinc-800">
+                                <div class="min-w-0 flex-1">
+                                    <span class="text-blue-400 font-bold text-[9px] uppercase block leading-tight tracking-widest">Ore ${entry.time}</span>
+                                    <span class="text-sm font-medium text-white truncate block">${entry.name}</span>
+                                </div>
+                                <div class="flex gap-2 ml-4">
+                                    <button onclick="openEditModal('oneToOne', '${entry.key}', 0)" class="icon-btn icon-btn-edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button onclick="deleteParticipant('oneToOne', '${entry.key}')" class="icon-btn icon-btn-delete"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>`;
+                        });
+                        dayContainer.innerHTML += pHeader + `</div></div>`;
+                    }
+                });
+
+                if (!dayData) dayContainer.innerHTML += `<p class="text-zinc-600 italic text-xs mb-10 ml-2 uppercase tracking-widest">Nessun allenamento</p>`;
+                content.appendChild(dayContainer);
+            });
+        }
+
+        function createSummarySection(label, time, items, colorClass, type, key) {
+            let html = `<div class="summary-card">
+                <div class="summary-header ${colorClass}">
+                    <span class="brand-font font-bold text-xl tracking-wider">${label} - ${time}</span>
+                    <span class="text-xs font-bold uppercase bg-black/10 px-3 py-1 rounded-full">${items.length} Pers.</span>
+                </div>
+                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">`;
+            items.forEach((p, i) => {
+                html += `
+                    <div class="flex justify-between items-center bg-zinc-900/50 p-2 px-3 rounded border border-zinc-800">
+                        <span class="text-sm font-medium text-white truncate flex-1">${p}</span>
+                        <div class="flex gap-2 ml-4">
+                            <button onclick="openEditModal('${type}', '${key}', ${i})" class="icon-btn icon-btn-edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteParticipant('${type}', '${key}', ${i})" class="icon-btn icon-btn-delete"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>`;
+            });
+            return html + `</div></div>`;
+        }
+
+        window.onload = render;
+    </script>
+</body>
+</html>

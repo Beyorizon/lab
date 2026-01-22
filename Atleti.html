@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Athlete Progress Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Monitoraggio Atleti</h1>
+                <p class="text-slate-500">Gestisci i dati e visualizza i progressi nel tempo.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="addAthlete()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+                    Aggiungi Atleta
+                </button>
+                <button onclick="addColumn()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                    Aggiungi Slot
+                </button>
+                <button onclick="clearAll()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                    Resetta Tutto
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content (Table) -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 border-bottom border-slate-200">
+                        <tr id="table-header">
+                            <!-- Populated by JS -->
+                        </tr>
+                    </thead>
+                    <tbody id="athlete-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <p class="mt-4 text-sm text-slate-400 italic">* I dati vengono salvati automaticamente nel browser.</p>
+    </div>
+
+    <!-- Modal for Chart -->
+    <div id="chart-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                    <h2 id="modal-title" class="text-2xl font-bold text-slate-800">Grafico Progressi</h2>
+                    <p id="modal-subtitle" class="text-slate-500"></p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="p-6 flex-1 min-h-[400px]">
+                <canvas id="progressChart"></canvas>
+            </div>
+            <div class="p-6 bg-slate-50 border-t border-slate-100 text-right">
+                <button onclick="closeModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-2 rounded-lg font-semibold transition-colors">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let athletes = JSON.parse(localStorage.getItem('athletes')) || [];
+        let columnCount = parseInt(localStorage.getItem('columnCount')) || 10;
+        let chartInstance = null;
+
+        // Initialize table
+        function init() {
+            renderHeader();
+            renderTable();
+        }
+
+        function saveData() {
+            localStorage.setItem('athletes', JSON.stringify(athletes));
+            localStorage.setItem('columnCount', columnCount);
+        }
+
+        function renderHeader() {
+            const header = document.getElementById('table-header');
+            let html = `
+                <th class="px-6 py-4 font-semibold text-slate-700 whitespace-nowrap min-w-[250px]">Atleta</th>
+            `;
+            
+            for (let i = 0; i < columnCount; i++) {
+                html += `
+                    <th class="px-4 py-4 font-semibold text-slate-700 text-center whitespace-nowrap">Slot ${i + 1}</th>
+                `;
+            }
+            
+            html += `<th class="px-6 py-4 font-semibold text-slate-700 text-right">Azioni</th>`;
+            header.innerHTML = html;
+        }
+
+        function renderTable() {
+            const body = document.getElementById('athlete-body');
+            body.innerHTML = '';
+
+            if (athletes.length === 0) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="${columnCount + 2}" class="px-6 py-12 text-center text-slate-400">
+                            Nessun atleta registrato. Clicca su "Aggiungi Atleta" per iniziare.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            athletes.forEach((athlete, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition-colors border-b border-slate-100 group";
+                
+                let tdName = `
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg cursor-pointer hover:bg-blue-200 transition-colors" onclick="openChart(${index})">
+                                ${athlete.name ? athlete.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <input 
+                                type="text" 
+                                value="${athlete.name}" 
+                                placeholder="Nome Atleta"
+                                onchange="updateAthleteName(${index}, this.value)"
+                                class="bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1 px-2 font-medium w-full"
+                            >
+                        </div>
+                    </td>
+                `;
+
+                let tdSlots = '';
+                for (let i = 0; i < columnCount; i++) {
+                    const val = athlete.data[i] || '';
+                    tdSlots += `
+                        <td class="px-2 py-4 text-center">
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                value="${val}"
+                                placeholder="0.00"
+                                onchange="updateAthleteData(${index}, ${i}, this.value)"
+                                class="w-20 text-center bg-slate-50 border border-slate-200 rounded py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            >
+                        </td>
+                    `;
+                }
+
+                let tdActions = `
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="openChart(${index})" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors title="Vedi Grafico">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                            </button>
+                            <button onclick="removeAthlete(${index})" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Elimina">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                `;
+
+                tr.innerHTML = tdName + tdSlots + tdActions;
+                body.appendChild(tr);
+            });
+        }
+
+        // Actions
+        function addAthlete() {
+            athletes.push({
+                name: '',
+                data: Array(columnCount).fill('')
+            });
+            saveData();
+            renderTable();
+        }
+
+        function removeAthlete(index) {
+            if (confirm(`Sei sicuro di voler eliminare questo atleta?`)) {
+                athletes.splice(index, 1);
+                saveData();
+                renderTable();
+            }
+        }
+
+        function addColumn() {
+            columnCount++;
+            athletes.forEach(a => a.data.push(''));
+            saveData();
+            renderHeader();
+            renderTable();
+        }
+
+        function updateAthleteName(index, name) {
+            athletes[index].name = name;
+            saveData();
+            // Optional: silent update for visual icon initial
+            const icon = document.querySelectorAll('#athlete-body tr')[index].querySelector('.w-10');
+            icon.innerText = name ? name.charAt(0).toUpperCase() : '?';
+        }
+
+        function updateAthleteData(athleteIndex, slotIndex, value) {
+            athletes[athleteIndex].data[slotIndex] = value;
+            saveData();
+        }
+
+        function clearAll() {
+            if (confirm("Attenzione: questo cancellerà TUTTI i dati. Continuare?")) {
+                athletes = [];
+                columnCount = 10;
+                saveData();
+                init();
+            }
+        }
+
+        // Chart Logic
+        function openChart(index) {
+            const athlete = athletes[index];
+            if (!athlete.name) {
+                alert("Per favore, inserisci prima il nome dell'atleta.");
+                return;
+            }
+
+            const modal = document.getElementById('chart-modal');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+            
+            title.innerText = `Progressi: ${athlete.name}`;
+            subtitle.innerText = `Analisi delle prestazioni basata sugli slot inseriti`;
+            modal.classList.remove('hidden');
+
+            // Prepare data for Chart.js
+            // Filter out empty values for a cleaner line
+            const labels = [];
+            const dataValues = [];
+
+            athlete.data.forEach((val, i) => {
+                if (val !== '' && val !== null) {
+                    labels.push(`Slot ${i + 1}`);
+                    dataValues.push(parseFloat(val));
+                }
+            });
+
+            if (dataValues.length === 0) {
+                // Mock a message if no data
+                subtitle.innerText = "Nessun dato inserito per questo atleta. Inserisci dei valori numerici negli slot.";
+            }
+
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valore Prestazione',
+                        data: dataValues,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#2563eb',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('chart-modal').classList.add('hidden');
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('chart-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Initialize on load
+        window.onload = init;
+    </script>
+</body>
+</html>
